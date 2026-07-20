@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Diagrama de flujo - Exportación Centro de Acopio a Refinería</title>
+<style>
+  :root{
+    --lane-w: 230px;
+    --step-w: 178px;
+    --step-gap: 22px;
+    --row-h: 92px;
+    --header-h: 54px;
+  }
+  * { box-sizing: border-box; }
+  body{
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background:#f4f5f7;
+    color:#1f2430;
+  }
+  h1{
+    font-size:19px;
+    font-weight:600;
+    margin:18px 24px 2px;
+  }
+  .subtitle{
+    margin:0 24px 16px;
+    font-size:13px;
+    color:#5b6270;
+  }
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    margin:0 24px 16px;
+  }
+  .legend-item{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:11.5px;
+    color:#3c4250;
+  }
+  .legend-swatch{
+    width:12px;height:12px;border-radius:3px;flex:none;
+  }
+  .board{
+    display:flex;
+    align-items:flex-start;
+    margin: 0 24px 32px;
+    border:1px solid #d8dae0;
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .lane-panel{
+    flex:none;
+    position:relative;
+    background:#232733;
+    z-index:6;
+    box-shadow: 2px 0 6px rgba(0,0,0,0.12);
+  }
+  .scroll-wrap{
+    overflow-x:auto;
+    overflow-y:hidden;
+    flex:1 1 auto;
+  }
+  .diagram{
+    position:relative;
+  }
+  .stage-band{
+    position:absolute;
+    top:0;
+    border-radius:0;
+    z-index:0;
+  }
+  .stage-label{
+    position:absolute;
+    top:6px;
+    left:8px;
+    font-size:12px;
+    font-weight:600;
+    z-index:2;
+    white-space:nowrap;
+  }
+  .lane-header{
+    position:absolute;
+    left:0;
+    z-index:5;
+    background:#232733;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:12px;
+    font-weight:600;
+    text-align:center;
+    padding:6px 10px;
+    border-bottom:1px solid #33394a;
+    line-height:1.25;
+  }
+  .lane-header.top-corner{
+    background:#181b23;
+  }
+  .step-box{
+    position:relative;
+    z-index:3;
+    margin: 8px 10px;
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:11.5px;
+    line-height:1.35;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    border:1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .step-num{
+    font-size:10px;
+    font-weight:700;
+    opacity:0.6;
+    margin-bottom:2px;
+  }
+  .step-title{
+    font-weight:600;
+  }
+  .step-sub{
+    font-size:10.5px;
+    opacity:0.75;
+    margin-top:2px;
+  }
+  svg.arrows{
+    position:absolute;
+    top:0; left:0;
+    z-index:1;
+    pointer-events:none;
+    overflow: visible;
+  }
+</style>
+</head>
+<body>
+
+<h1>Diagrama de flujo con carriles — Exportación de Black Mass: Centro de Acopio (MX) a Refinería (EUA)</h1>
+<p class="subtitle">Carriles según Partes Interesadas y Actores Involucrados (punto 3) · Proceso operativo Etapas I a VIII (puntos 4 al 11)</p>
+
+<div class="legend" id="legend"></div>
+
+<div class="board">
+  <div class="lane-panel" id="lanePanel"></div>
+  <div class="scroll-wrap">
+    <div class="diagram" id="diagram"></div>
+  </div>
+</div>
+
+<script>
+const actors = [
+  { key:"cace", label:"Centro de Acopio (CA) /\nCentro de Exportación (CE)" },
+  { key:"df",   label:"Destino Final\n(Refinería)" },
+  { key:"dir",  label:"Dirección NIU NIU\n(CEO / COO / LOO)" },
+  { key:"an",   label:"Analista de Operaciones\nNIU NIU" },
+  { key:"aamx", label:"Agentes Aduanales\nMéxico (AAs MX)" },
+  { key:"aaus", label:"Agentes Aduanales\nEUA (AAs EUA)" },
+  { key:"trmx", label:"Prestadores de Transporte\nMéxico" },
+  { key:"trus", label:"Prestadores de Transporte\nEUA" },
+  { key:"sem",  label:"Autoridad Ambiental\nSEMARNAT-PROFEPA" }
+];
+
+const stages = [
+  { name:"Etapa I\nFase previa y\nplanificación comercial", color:"#dbe6ff" },
+  { name:"Etapa II\nGestión documental\nprevia a la exportación", color:"#dbf5e3" },
+  { name:"Etapa III\nPreparación de la\ncarga en el CE", color:"#ffe9d1" },
+  { name:"Etapa IV\nDespacho aduanero y\ncoordinación transfronteriza", color:"#e6dcfb" },
+  { name:"Etapa V\nCarga, despacho en origen\ny tránsito nacional", color:"#d7f3f5" },
+  { name:"Etapa VI\nOperaciones en frontera MX\ny cruce internacional", color:"#fddede" },
+  { name:"Etapa VII\nImportación y entrega\nen Destino Final", color:"#dce8fb" },
+  { name:"Etapa VIII\nCierre administrativo\ny ambiental", color:"#faf3cf" }
+];
+
+const steps = [
+  // Etapa I
+  {actor:"an",  stage:0, t:"Análisis de reporte del CA", s:"Verifica kg y precio de venta"},
+  {actor:"an",  stage:0, t:"Solicitud de cotizaciones", s:"A aliados comerciales"},
+  {actor:"dir", stage:0, t:"Revisión interna", s:"Validación COO / LOO"},
+  {actor:"an",  stage:0, t:"Registro en Cotizador", s:"Y Check List del proceso"},
+  {actor:"dir", stage:0, t:"Validación del cotizador", s:"Por el COO"},
+
+  // Etapa II
+  {actor:"an",  stage:1, t:"Apertura del RGAE", s:"Captura en App de Exportaciones"},
+  {actor:"dir", stage:1, t:"Generación de REAE", s:"Validación final del COO"},
+  {actor:"dir", stage:1, t:"Autorización definitiva", s:"Del REAE, por el CEO"},
+  {actor:"df",  stage:1, t:"Emisión de Orden de Compra", s:"Confirma aceptación del material"},
+  {actor:"cace",stage:1, t:"Cambio de rol a CE", s:"Prepara material para exportar"},
+  {actor:"cace",stage:1, t:"Generación de Packing List", s:"Lista de empaque preliminar"},
+  {actor:"aamx",stage:1, t:"Confirmación de exportación", s:"Inician trámites aduanales"},
+  {actor:"trmx",stage:1, t:"Contratación de transporte", s:"Orden de servicio y ruta"},
+  {actor:"cace",stage:1, t:"Factura Comercial", s:"De exportación (SAT)"},
+  {actor:"cace",stage:1, t:"Certificado de origen", s:"Ficha técnica y HDS"},
+
+  // Etapa III
+  {actor:"cace",stage:2, t:"Revisión física del empaque", s:""},
+  {actor:"cace",stage:2, t:"Verificación etiquetas UN", s:""},
+  {actor:"cace",stage:2, t:"Packing List definitivo", s:"Pesos, piezas y dimensiones"},
+  {actor:"cace",stage:2, t:"Pesaje de la unidad", s:"Registro de peso tara"},
+  {actor:"cace",stage:2, t:"Evidencias durante la carga", s:"Foto y video del acomodo"},
+  {actor:"cace",stage:2, t:"Cierre de unidad y sello", s:"Sello de alta seguridad"},
+
+  // Etapa IV
+  {actor:"cace",stage:3, t:"Consolidación del expediente", s:"Documental para el cruce"},
+  {actor:"aamx",stage:3, t:"Procesamiento del Pedimento", s:"Clave A1, prepago DTA"},
+  {actor:"aamx",stage:3, t:"Generación de la MVE", s:"Manifestación de Valor Electrónica"},
+  {actor:"cace",stage:3, t:"Notificaciones de movimiento", s:"Plataformas MX / EUA"},
+  {actor:"cace",stage:3, t:"Confirmación de fecha de carga", s:"Coordinación fronteriza"},
+  {actor:"aamx",stage:3, t:"Enlace con AAs EUA", s:"Carta de instrucciones"},
+
+  // Etapa V
+  {actor:"cace",stage:4, t:"Carga física del material", s:"Bajo supervisión EHS"},
+  {actor:"cace",stage:4, t:"Emisión y firma del FNT", s:"Por el CE"},
+  {actor:"cace",stage:4, t:"Manifiesto de Salida de RP", s:"SEMARNAT"},
+  {actor:"trmx",stage:4, t:"Emisión de Carta Porte", s:"Digital con CCP"},
+  {actor:"trmx",stage:4, t:"Firma del operador en FNT", s:"Custodia de la carga"},
+  {actor:"trmx",stage:4, t:"Monitoreo GPS a frontera", s:"Reportes en puntos de control"},
+
+  // Etapa VI
+  {actor:"trmx",stage:5, t:"Entrega en frontera (MX)", s:"Validación de sellos"},
+  {actor:"aamx",stage:5, t:"Maniobras de transfer", s:"Descarga / acoplamiento"},
+  {actor:"aamx",stage:5, t:"Despacho aduanal de exportación", s:"Semáforo fiscal y cruce"},
+
+  // Etapa VII
+  {actor:"aaus",stage:6, t:"Despacho de importación", s:"Customs Entry ante CBP"},
+  {actor:"trus",stage:6, t:"Entrega en bodega frontera EUA", s:""},
+  {actor:"trus",stage:6, t:"Aviso de arribo al DF", s:""},
+  {actor:"trus",stage:6, t:"Traslado final a Refinería", s:"Transporte carretero EUA"},
+  {actor:"df",  stage:6, t:"Recepción e inspección", s:"Confronta pesos y empaque"},
+  {actor:"df",  stage:6, t:"Firma de cierre en el FNT", s:"Recepción formal de la carga"},
+
+  // Etapa VIII
+  {actor:"an",  stage:7, t:"Apertura del RGCE", s:""},
+  {actor:"sem", stage:7, t:"Entrega del expediente FNT", s:"Completo, firmas de cadena de custodia"},
+  {actor:"df",  stage:7, t:"Reporte de procesamiento", s:"Certificado de destrucción/recuperación"},
+  {actor:"an",  stage:7, t:"Liquidación y pago al DF", s:""},
+  {actor:"an",  stage:7, t:"Cierre definitivo del RGCE", s:"Archivo mínimo 5 años"}
+];
+
+const laneW = 230, stepW = 178, stepGap = 22, rowH = 92, headerH = 54;
+const totalCols = steps.length;
+const totalWidth = totalCols * (stepW + stepGap) + stepGap;
+const totalHeight = headerH + actors.length * rowH + 20;
+
+const lanePanel = document.getElementById("lanePanel");
+lanePanel.style.width = laneW + "px";
+lanePanel.style.height = totalHeight + "px";
+
+const diagram = document.getElementById("diagram");
+diagram.style.width = totalWidth + "px";
+diagram.style.height = totalHeight + "px";
+
+// legend
+const legend = document.getElementById("legend");
+stages.forEach(st=>{
+  const item = document.createElement("div");
+  item.className = "legend-item";
+  item.innerHTML = `<span class="legend-swatch" style="background:${st.color}"></span>${st.name.split("\n")[0]}: ${st.name.split("\n").slice(1).join(" ")}`;
+  legend.appendChild(item);
+});
+
+// top-left corner (in fixed lane panel)
+const corner = document.createElement("div");
+corner.className = "lane-header top-corner";
+corner.style.top = "0";
+corner.style.width = laneW + "px";
+corner.style.height = headerH + "px";
+corner.style.zIndex = "10";
+corner.textContent = "Partes interesadas / Etapas";
+lanePanel.appendChild(corner);
+
+// lane headers (fixed panel, does not scroll horizontally)
+actors.forEach((a, i)=>{
+  const el = document.createElement("div");
+  el.className = "lane-header";
+  el.style.top = (headerH + i*rowH) + "px";
+  el.style.width = laneW + "px";
+  el.style.height = rowH + "px";
+  el.innerHTML = a.label.split("\n").join("<br>");
+  lanePanel.appendChild(el);
+});
+
+// compute stage column ranges
+let colIdx = 0;
+const stageRanges = stages.map((st)=>{
+  const start = colIdx;
+  const count = steps.filter(s=>s.stage===stages.indexOf(st)).length;
+  colIdx += count;
+  return {start, count};
+});
+
+// stage bands + labels
+stageRanges.forEach((r, si)=>{
+  if(r.count === 0) return;
+  const x = stepGap + r.start*(stepW+stepGap) - stepGap/2;
+  const w = r.count*(stepW+stepGap);
+  const band = document.createElement("div");
+  band.className = "stage-band";
+  band.style.left = x + "px";
+  band.style.top = headerH + "px";
+  band.style.width = w + "px";
+  band.style.height = (actors.length*rowH) + "px";
+  band.style.background = stages[si].color;
+  band.style.opacity = "0.35";
+  diagram.appendChild(band);
+
+  const label = document.createElement("div");
+  label.className = "stage-label";
+  label.style.left = (x+8) + "px";
+  label.style.top = (headerH+4) + "px";
+  label.style.color = "#2a2f3a";
+  label.innerHTML = stages[si].name.split("\n")[0] + " — " + stages[si].name.split("\n").slice(1).join(" ");
+  diagram.appendChild(label);
+});
+
+// step boxes
+const boxColors = {
+  0:"#c7d8ff", 1:"#bfe8cd", 2:"#ffd2a3", 3:"#cdb8f5",
+  4:"#a9e2e6", 5:"#f6b3b3", 6:"#b7cdf5", 7:"#f0e08a"
+};
+const boxPositions = [];
+steps.forEach((step, i)=>{
+  const actorIndex = actors.findIndex(a=>a.key===step.actor);
+  const x = stepGap + i*(stepW+stepGap);
+  const y = headerH + actorIndex*rowH + (rowH-70)/2;
+  const box = document.createElement("div");
+  box.className = "step-box";
+  box.style.position = "absolute";
+  box.style.left = x + "px";
+  box.style.top = y + "px";
+  box.style.width = stepW + "px";
+  box.style.minHeight = "70px";
+  box.style.margin = "0";
+  box.style.background = boxColors[step.stage];
+  box.innerHTML = `<div class="step-num">Paso ${i+1}</div><div class="step-title">${step.t}</div>` + (step.s ? `<div class="step-sub">${step.s}</div>` : "");
+  diagram.appendChild(box);
+  boxPositions.push({ x: x + stepW/2, y: y + 35, actorIndex });
+});
+
+// arrows overlay
+const svgNS = "http://www.w3.org/2000/svg";
+const svg = document.createElementNS(svgNS, "svg");
+svg.classList.add("arrows");
+svg.setAttribute("width", totalWidth);
+svg.setAttribute("height", totalHeight);
+
+const marker = document.createElementNS(svgNS, "marker");
+marker.setAttribute("id", "arrowhead");
+marker.setAttribute("viewBox", "0 0 10 10");
+marker.setAttribute("refX", "8");
+marker.setAttribute("refY", "5");
+marker.setAttribute("markerWidth", "6");
+marker.setAttribute("markerHeight", "6");
+marker.setAttribute("orient", "auto-start-reverse");
+const markerPath = document.createElementNS(svgNS, "path");
+markerPath.setAttribute("d", "M1 1L9 5L1 9");
+markerPath.setAttribute("fill", "none");
+markerPath.setAttribute("stroke", "#6b7280");
+markerPath.setAttribute("stroke-width", "1.5");
+marker.appendChild(markerPath);
+const defs = document.createElementNS(svgNS, "defs");
+defs.appendChild(marker);
+svg.appendChild(defs);
+
+for(let i=0;i<boxPositions.length-1;i++){
+  const a = boxPositions[i];
+  const b = boxPositions[i+1];
+  const path = document.createElementNS(svgNS,"path");
+  let d;
+  if(a.actorIndex === b.actorIndex){
+    d = `M ${a.x+stepW/2-10} ${a.y} L ${b.x-stepW/2+10} ${b.y}`;
+  } else {
+    const midX = (a.x + b.x)/2;
+    d = `M ${a.x+stepW/2-10} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${b.x-stepW/2+10} ${b.y}`;
+  }
+  path.setAttribute("d", d);
+  path.setAttribute("fill", "none");
+  path.setAttribute("stroke", "#6b7280");
+  path.setAttribute("stroke-width", "1.3");
+  path.setAttribute("marker-end", "url(#arrowhead)");
+  svg.appendChild(path);
+}
+diagram.appendChild(svg);
+</script>
+
+</body>
+</html>
