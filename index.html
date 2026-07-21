@@ -75,12 +75,14 @@
   }
   .stage-label{
     position:absolute;
-    top:6px;
+    top:8px;
     left:8px;
-    font-size:12px;
-    font-weight:600;
+    font-size:11.5px;
+    font-weight:700;
+    line-height:1.3;
     z-index:2;
-    white-space:nowrap;
+    white-space:normal;
+    padding-right:8px;
   }
   .lane-header{
     position:absolute;
@@ -241,7 +243,7 @@ const steps = [
   {actor:"an",  stage:7, t:"Cierre definitivo del RGCE", s:"Archivo mínimo 5 años"}
 ];
 
-const laneW = 230, stepW = 178, stepGap = 22, rowH = 92, headerH = 54;
+const laneW = 230, stepW = 178, stepGap = 22, rowH = 92, headerH = 64;
 const totalCols = steps.length;
 const totalWidth = totalCols * (stepW + stepGap) + stepGap;
 const totalHeight = headerH + actors.length * rowH + 20;
@@ -298,6 +300,18 @@ stageRanges.forEach((r, si)=>{
   if(r.count === 0) return;
   const x = stepGap + r.start*(stepW+stepGap) - stepGap/2;
   const w = r.count*(stepW+stepGap);
+
+  // header strip (above the lane rows) with the stage title
+  const headerStrip = document.createElement("div");
+  headerStrip.style.position = "absolute";
+  headerStrip.style.left = x + "px";
+  headerStrip.style.top = "0px";
+  headerStrip.style.width = w + "px";
+  headerStrip.style.height = headerH + "px";
+  headerStrip.style.background = stages[si].color;
+  headerStrip.style.borderBottom = "2px solid rgba(0,0,0,0.15)";
+  diagram.appendChild(headerStrip);
+
   const band = document.createElement("div");
   band.className = "stage-band";
   band.style.left = x + "px";
@@ -311,8 +325,9 @@ stageRanges.forEach((r, si)=>{
   const label = document.createElement("div");
   label.className = "stage-label";
   label.style.left = (x+8) + "px";
-  label.style.top = (headerH+4) + "px";
-  label.style.color = "#2a2f3a";
+  label.style.top = "8px";
+  label.style.width = (w-16) + "px";
+  label.style.color = "#20242e";
   label.innerHTML = stages[si].name.split("\n")[0] + " — " + stages[si].name.split("\n").slice(1).join(" ");
   diagram.appendChild(label);
 });
